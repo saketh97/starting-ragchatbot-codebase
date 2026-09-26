@@ -19,7 +19,17 @@ Always use `uv` for Python dependencies and running code (`uv sync`, `uv add`, `
 
 After finishing changes, run the server (`cd backend && uv run uvicorn app:app --reload --port 8000`) so the user can verify them.
 
-There are no tests, linter, or build step configured. The root `main.py` is an unused stub; the real entry point is `backend/app.py`. Commands must be run from `backend/` because paths are relative (`../docs`, `../frontend`, `./chroma_db`).
+Code quality (black, line length 88; config in `pyproject.toml`), run from the repo root:
+
+```bash
+./scripts/format.sh    # auto-format backend/ and main.py with black
+./scripts/check.sh     # check formatting only, show diff, don't modify
+./scripts/quality.sh   # formatting check + pytest
+```
+
+Run `./scripts/format.sh` before committing.
+
+There is no linter or build step configured. The root `main.py` is an unused stub; the real entry point is `backend/app.py`. Commands must be run from `backend/` because paths are relative (`../docs`, `../frontend`, `./chroma_db`).
 
 ## Architecture
 

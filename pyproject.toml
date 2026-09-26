@@ -16,6 +16,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "black>=26.5.1",
     "pytest>=9.1.1",
 ]
 
@@ -24,3 +25,14 @@ testpaths = ["backend/tests"]
 pythonpath = ["backend"]
 markers = ["live: hits the real Anthropic API (run with -m live)"]
 addopts = "-m 'not live'"
+
+[tool.black]
+line-length = 88
+target-version = ["py313"]
+extend-exclude = '''
+/(
+    \.trees
+  | chroma_db
+  | \.venv
+)/
+'''

@@ -1,4 +1,5 @@
 """Opt-in test against the REAL Anthropic API (costs a few calls). Run: uv run pytest tests -m live -v -s"""
+
 import pytest
 
 from config import config
@@ -11,7 +12,10 @@ def live_rag(ingested_rag):
     if not config.ANTHROPIC_API_KEY:
         pytest.skip("ANTHROPIC_API_KEY not set")
     from ai_generator import AIGenerator
-    ingested_rag.ai_generator = AIGenerator(config.ANTHROPIC_API_KEY, config.ANTHROPIC_MODEL)
+
+    ingested_rag.ai_generator = AIGenerator(
+        config.ANTHROPIC_API_KEY, config.ANTHROPIC_MODEL
+    )
     return ingested_rag
 
 
