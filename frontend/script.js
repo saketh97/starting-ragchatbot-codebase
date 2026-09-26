@@ -3,9 +3,10 @@ const API_URL = '/api';
 
 // Global state
 let currentSessionId = null;
+let currentRequest = null; // AbortController for the in-flight query
 
 // DOM elements
-let chatMessages, chatInput, sendButton, totalCourses, courseTitles;
+let chatMessages, chatInput, sendButton, newChatButton, totalCourses, courseTitles;
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
@@ -13,6 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
     chatMessages = document.getElementById('chatMessages');
     chatInput = document.getElementById('chatInput');
     sendButton = document.getElementById('sendButton');
+    newChatButton = document.getElementById('newChatButton');
     totalCourses = document.getElementById('totalCourses');
     courseTitles = document.getElementById('courseTitles');
     
@@ -28,8 +30,8 @@ function setupEventListeners() {
     chatInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') sendMessage();
     });
-    
-    
+    newChatButton.addEventListener('click', startNewChat);
+
     // Suggested questions
     document.querySelectorAll('.suggested-item').forEach(button => {
         button.addEventListener('click', (e) => {
@@ -59,6 +61,9 @@ async function sendMessage() {
     chatMessages.appendChild(loadingMessage);
     chatMessages.scrollTop = chatMessages.scrollHeight;
 
+    const controller = new AbortController();
+    currentRequest = controller;
+
     try {
         const response = await fetch(`${API_URL}/query`, {
             method: 'POST',
@@ -68,10 +73,15 @@ async function sendMessage() {
             body: JSON.stringify({
                 query: query,
                 session_id: currentSessionId
-            })
+            }),
+            signal: controller.signal
         });
 
-        if (!response.ok) throw new Error('Query failed');
+        if (!response.ok) {
+            // Surface the server's error detail (FastAPI puts it in `detail`) instead of a generic message
+            const err = await response.json().catch(() => ({}));
+            throw new Error(err.detail || `Query failed (HTTP ${response.status})`);
+        }
 
         const data = await response.json();
         
@@ -85,13 +95,39 @@ async function sendMessage() {
         addMessage(data.answer, 'assistant', data.sources);
 
     } catch (error) {
+        // Aborted by New Chat: the chat was already reset, so show nothing
+        if (error.name === 'AbortError') return;
         // Replace loading message with error
         loadingMessage.remove();
         addMessage(`Error: ${error.message}`, 'assistant');
     } finally {
-        chatInput.disabled = false;
-        sendButton.disabled = false;
-        chatInput.focus();
+        if (currentRequest === controller) {
+            currentRequest = null;
+            chatInput.disabled = false;
+            sendButton.disabled = false;
+            chatInput.focus();
+        }
+    }
+}
+
+// Discard the current conversation (UI + server session) and start fresh
+function startNewChat() {
+    if (currentRequest) {
+        currentRequest.abort();
+        currentRequest = null;
+    }
+
+    const oldSessionId = currentSessionId;
+    createNewSession();
+
+    chatInput.value = '';
+    chatInput.disabled = false;
+    sendButton.disabled = false;
+    chatInput.focus();
+
+    if (oldSessionId) {
+        fetch(`${API_URL}/session/${encodeURIComponent(oldSessionId)}`, { method: 'DELETE' })
+            .catch(error => console.error('Failed to delete session:', error));
     }
 }
 
@@ -125,7 +161,7 @@ function addMessage(content, type, sources = null, isWelcome = false) {
         html += `
             <details class="sources-collapsible">
                 <summary class="sources-header">Sources</summary>
-                <div class="sources-content">${sources.join(', ')}</div>
+                <div class="sources-content">${sources.map(renderSource).join('')}</div>
             </details>
         `;
     }
@@ -135,6 +171,17 @@ function addMessage(content, type, sources = null, isWelcome = false) {
     chatMessages.scrollTop = chatMessages.scrollHeight;
     
     return messageId;
+}
+
+// Render a source as a link (URL hidden behind the text) that opens in a new tab
+function renderSource(source) {
+    const text = escapeHtml(source.text);
+    if (!source.link) return `<span class="source-chip">${text}</span>`;
+    const href = escapeHtml(source.link).replace(/"/g, '&quot;');
+    return `<a href="${href}" target="_blank" rel="noopener noreferrer" class="source-chip source-link">
+        <svg class="source-icon" viewBox="0 0 24 24" width="12" height="12" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+        <span>${text}</span>
+    </a>`;
 }
 
 // Helper function to escape HTML for user messages
