@@ -1,4 +1,5 @@
 """Shared helpers and fixtures for the RAG chatbot tests."""
+
 import os
 import sys
 from pathlib import Path
@@ -14,13 +15,15 @@ if str(BACKEND_DIR) not in sys.path:
 
 from vector_store import SearchResults, VectorStore  # noqa: E402
 
-
 # ---------- SearchResults helpers ----------
+
 
 def make_results(docs=None, metas=None, error=None):
     docs = docs or []
     metas = metas or []
-    return SearchResults(documents=docs, metadata=metas, distances=[0.1] * len(docs), error=error)
+    return SearchResults(
+        documents=docs, metadata=metas, distances=[0.1] * len(docs), error=error
+    )
 
 
 @pytest.fixture
@@ -31,6 +34,7 @@ def mock_store():
 
 
 # ---------- Fake Anthropic objects ----------
+
 
 def text_block(text):
     return SimpleNamespace(type="text", text=text)
@@ -54,7 +58,9 @@ class FakeAnthropicClient:
 
     def _create(self, **kwargs):
         snapshot = dict(kwargs)
-        snapshot["messages"] = list(kwargs["messages"])  # the generator keeps appending to its list
+        snapshot["messages"] = list(
+            kwargs["messages"]
+        )  # the generator keeps appending to its list
         self.calls.append(snapshot)
         if not self._responses:
             raise AssertionError("FakeAnthropicClient ran out of scripted responses")
@@ -71,6 +77,7 @@ def fake_client_factory():
 
 # ---------- Real vector store (tmp Chroma, real docs, real embeddings) ----------
 
+
 @pytest.fixture(scope="session")
 def real_rag_parts(tmp_path_factory):
     """(VectorStore, DocumentProcessor, courses_added, chunks_added) built from ../docs in a temp dir."""
@@ -80,7 +87,11 @@ def real_rag_parts(tmp_path_factory):
     if not DOCS_DIR.exists():
         pytest.skip("docs/ folder not found")
     try:
-        store = VectorStore(str(tmp_path_factory.mktemp("chroma")), config.EMBEDDING_MODEL, config.MAX_RESULTS)
+        store = VectorStore(
+            str(tmp_path_factory.mktemp("chroma")),
+            config.EMBEDDING_MODEL,
+            config.MAX_RESULTS,
+        )
     except Exception as e:  # e.g. embedding model can't be loaded/downloaded
         pytest.skip(f"could not build real VectorStore: {e}")
 
@@ -109,7 +120,10 @@ def ingested_rag(tmp_path_factory):
 
     if not DOCS_DIR.exists():
         pytest.skip("docs/ folder not found")
-    cfg = Config(ANTHROPIC_API_KEY="test-key", CHROMA_PATH=str(tmp_path_factory.mktemp("chroma_rag")))
+    cfg = Config(
+        ANTHROPIC_API_KEY="test-key",
+        CHROMA_PATH=str(tmp_path_factory.mktemp("chroma_rag")),
+    )
     try:
         rag = RAGSystem(cfg)
     except Exception as e:
