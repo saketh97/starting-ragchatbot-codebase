@@ -18,10 +18,39 @@ document.addEventListener('DOMContentLoaded', () => {
     totalCourses = document.getElementById('totalCourses');
     courseTitles = document.getElementById('courseTitles');
     
+    setupThemeToggle();
     setupEventListeners();
     createNewSession();
     loadCourseStats();
 });
+
+// Theme toggle (light/dark), persisted in localStorage
+function setupThemeToggle() {
+    const toggle = document.getElementById('themeToggle');
+    const root = document.documentElement;
+
+    const apply = (theme) => {
+        root.setAttribute('data-theme', theme);
+        toggle.setAttribute('aria-checked', String(theme === 'light'));
+        toggle.setAttribute('title', theme === 'light' ? 'Switch to dark theme' : 'Switch to light theme');
+    };
+
+    apply(root.getAttribute('data-theme') === 'light' ? 'light' : 'dark');
+
+    // Follow OS theme changes until the user makes an explicit choice
+    window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', (e) => {
+        let saved = null;
+        try { saved = localStorage.getItem('theme'); } catch (err) {}
+        if (!saved) apply(e.matches ? 'light' : 'dark');
+    });
+
+    // A <button> already toggles on Enter/Space; click covers mouse and keyboard
+    toggle.addEventListener('click', () => {
+        const next = root.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+        apply(next);
+        try { localStorage.setItem('theme', next); } catch (e) {}
+    });
+}
 
 // Event Listeners
 function setupEventListeners() {
