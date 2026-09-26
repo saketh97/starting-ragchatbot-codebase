@@ -69,6 +69,39 @@ def fake_client_factory():
     return FakeAnthropicClient
 
 
+# ---------- API testing (FastAPI TestClient against a test app with a mocked RAGSystem) ----------
+
+@pytest.fixture
+def sample_sources():
+    return [
+        {"text": "MCP Course - Lesson 1", "link": "http://lesson/1"},
+        {"text": "MCP Course - Lesson 2", "link": None},
+    ]
+
+
+@pytest.fixture
+def sample_courses():
+    return {"total_courses": 2, "course_titles": ["MCP Course", "Retrieval Course"]}
+
+
+@pytest.fixture
+def mock_rag(sample_sources, sample_courses):
+    """A RAGSystem stand-in: no Chroma, no embeddings, no Anthropic calls."""
+    rag = MagicMock()
+    rag.session_manager.create_session.return_value = "session-1"
+    rag.query.return_value = ("the answer", sample_sources)
+    rag.get_course_analytics.return_value = sample_courses
+    return rag
+
+
+@pytest.fixture
+def client(mock_rag):
+    from fastapi.testclient import TestClient
+    from api_app import create_test_app
+
+    return TestClient(create_test_app(mock_rag))
+
+
 # ---------- Real vector store (tmp Chroma, real docs, real embeddings) ----------
 
 @pytest.fixture(scope="session")
